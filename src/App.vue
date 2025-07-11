@@ -18,24 +18,64 @@
         </div>
       </div>
 
-      <div class="table-container">
-        <table class="users-table desktop-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nome</th>
-              <th>Potência Atual (W)</th>
-              <th>Status</th>
-              <th>Última Atualização</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in filteredUsers" :key="user.id" class="table-row">
-              <td>{{ user.id }}</td>
-              <td>{{ user.accountName }}</td>
-              <td>{{ user.pac }} W</td>
-              <td>
+      <div v-if="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+      </div>
+
+      <div v-else>
+        <div class="table-container">
+          <table class="users-table desktop-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Potência Atual (W)</th>
+                <th>Status</th>
+                <th>Última Atualização</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="user in filteredUsers"
+                :key="user.id"
+                class="table-row"
+              >
+                <td>{{ user.id }}</td>
+                <td>{{ user.accountName }}</td>
+                <td>{{ user.pac }} W</td>
+                <td>
+                  <span
+                    :class="[
+                      'status-badge',
+                      user.status === '1' ? 'ativo' : 'inativo',
+                    ]"
+                  >
+                    {{ user.status === "1" ? "Online" : "Offline" }}
+                  </span>
+                </td>
+                <td>{{ formatDate(user.lastUpdateTime) }}</td>
+                <td>
+                  <button class="action-btn edit" @click="editUser(user)">
+                    ✏️
+                  </button>
+                  <button
+                    class="action-btn delete"
+                    @click="deleteUser(user.id)"
+                  >
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Layout para mobile -->
+          <div class="mobile-cards">
+            <div v-for="user in filteredUsers" :key="user.id" class="user-card">
+              <div class="card-header">
+                <h3 class="card-name">{{ user.accountName }}</h3>
                 <span
                   :class="[
                     'status-badge',
@@ -44,66 +84,40 @@
                 >
                   {{ user.status === "1" ? "Online" : "Offline" }}
                 </span>
-              </td>
-              <td>{{ formatDate(user.lastUpdateTime) }}</td>
-              <td>
+              </div>
+
+              <div class="card-details">
+                <div class="detail-item">
+                  <span class="detail-label">ID:</span>
+                  <span class="detail-value">{{ user.id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Potência:</span>
+                  <span class="detail-value">{{ user.pac }} W</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Atualizado em:</span>
+                  <span class="detail-value">
+                    {{ formatDate(user.lastUpdateTime) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="card-actions">
                 <button class="action-btn edit" @click="editUser(user)">
-                  ✏️
+                  Editar
                 </button>
                 <button class="action-btn delete" @click="deleteUser(user.id)">
-                  🗑️
+                  Excluir
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Layout para mobile -->
-        <div class="mobile-cards">
-          <div v-for="user in filteredUsers" :key="user.id" class="user-card">
-            <div class="card-header">
-              <h3 class="card-name">{{ user.accountName }}</h3>
-              <span
-                :class="[
-                  'status-badge',
-                  user.status === '1' ? 'ativo' : 'inativo',
-                ]"
-              >
-                {{ user.status === "1" ? "Online" : "Offline" }}
-              </span>
-            </div>
-
-            <div class="card-details">
-              <div class="detail-item">
-                <span class="detail-label">ID:</span>
-                <span class="detail-value">{{ user.id }}</span>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Potência:</span>
-                <span class="detail-value">{{ user.pac }} W</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Atualizado em:</span>
-                <span class="detail-value">{{
-                  formatDate(user.lastUpdateTime)
-                }}</span>
-              </div>
-            </div>
-
-            <div class="card-actions">
-              <button class="action-btn edit" @click="editUser(user)">
-                Editar
-              </button>
-              <button class="action-btn delete" @click="deleteUser(user.id)">
-                Excluir
-              </button>
             </div>
           </div>
         </div>
-      </div>
 
-      <div v-if="filteredUsers.length === 0" class="empty-state">
-        <p>Nenhum inversor encontrado</p>
+        <div v-if="filteredUsers.length === 0" class="empty-state">
+          <p>Nenhum inversor encontrado</p>
+        </div>
       </div>
     </div>
   </div>
@@ -122,6 +136,7 @@ interface InverterData {
 
 const searchTerm = ref("");
 const users = ref<InverterData[]>([]);
+const isLoading = ref(true);
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -162,10 +177,39 @@ onMounted(async () => {
     users.value = data;
   } catch (error) {
     console.error("Erro ao buscar dados da API:", error);
+  } finally {
+    isLoading.value = false;
   }
 });
 </script>
+
 <style scoped>
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 40px 0;
+}
+
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #745bf2;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
